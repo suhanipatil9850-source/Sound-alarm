@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Clock</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .clock-emoji {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .current-time {
+            font-size: 3em;
+            color: #667eea;
+            font-weight: bold;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .alarm-section {
+            margin: 30px 0;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        input[type="time"] {
+            padding: 15px;
+            font-size: 1.3em;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 250px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        button {
+            margin: 20px 10px;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .set-alarm {
+            background: #667eea;
+            color: white;
+        }
+
+        .set-alarm:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .cancel-alarm {
+            background: #f56565;
+            color: white;
+            display: none;
+        }
+
+        .cancel-alarm:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 101, 101, 0.4);
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            display: none;
+        }
+
+        .status.active {
+            display: block;
+            background: #c3dafe;
+            color: #2c5282;
+        }
+
+        .status.ringing {
+            display: block;
+            background: #fed7d7;
+            color: #742a2a;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .alarm-sound {
+            font-size: 4em;
+            animation: ring 0.5s infinite;
+            display: none;
+        }
+
+        .alarm-sound.show {
+            display: block;
+        }
+
+        @keyframes ring {
+            0%, 100% {
+                transform: rotate(-10deg);
+            }
+            50% {
+                transform: rotate(10deg);
+            }
+        }
+
+        .info {
+            margin-top: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="clock-emoji">⏰</div>
+        <h1>Alarm Clock</h1>
+        
+        <div class="current-time" id="currentTime">00:00:00</div>
+        
+        <div class="alarm-section">
+            <label for="alarmTime">Set Alarm Time:</label>
+            <input type="time" id="alarmTime" required>
+            <button class="set-alarm" id="setAlarmBtn" onclick="setAlarm()">Set Alarm</button>
+            <button class="cancel-alarm" id="cancelAlarmBtn" onclick="cancelAlarm()">Cancel Alarm</button>
+        </div>
+        
+        <div class="status" id="status"></div>
+        <div class="alarm-sound" id="alarmSound">🔔</div>
+        
+        <div class="info">
+            <p>Current time updates every second</p>
+        </div>
+    </div>
+
+    <audio id="alarmAudio" loop>
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBDWH0fPTgjMGHHPC9dh+KwcqZbrn46lQEg1La+P52aFj" />
+    </audio>
+
+    <script>
+        let alarmTime = null;
+        let alarmInterval = null;
+        let alarmTimeout = null;
+
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('currentTime').textContent = `${hours}:${minutes}:${seconds}`;
+            
+            // Check if alarm should ring
+            if (alarmTime) {
+                const currentTime = `${hours}:${minutes}`;
+                if (currentTime === alarmTime) {
+                    triggerAlarm();
+                }
+            }
+        }
+
+        // Set alarm
+        function setAlarm() {
+            const timeInput = document.getElementById('alarmTime');
+            const selectedTime = timeInput.value;
+            
+            if (!selectedTime) {
+                alert('Please select a time for the alarm!');
+                return;
+            }
+            
+            alarmTime = selectedTime;
+            document.getElementById('status').className = 'status active';
+            document.getElementById('status').textContent = `⏰ Alarm set for ${alarmTime}`;
+            document.getElementById('setAlarmBtn').style.display = 'none';
+            document.getElementById('cancelAlarmBtn').style.display = 'inline-block';
+            
+            console.log('Alarm set for:', alarmTime);
+        }
+
+        // Cancel alarm
+        function cancelAlarm() {
+            alarmTime = null;
+            document.getElementById('status').className = 'status';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('setAlarmBtn').style.display = 'inline-block';
+            document.getElementById('cancelAlarmBtn').style.display = 'none';
+            document.getElementById('alarmSound').classList.remove('show');
+            
+            // Stop alarm audio
+            const audio = document.getElementById('alarmAudio');
+            audio.pause();
+            audio.currentTime = 0;
+            
+            console.log('Alarm cancelled');
+        }
+
+        // Trigger alarm
+        function triggerAlarm() {
+            document.getElementById('status').className = 'status ringing';
+            document.getElementById('status').textContent = '⏰ Wake up! Alarm ringing!';
+            document.getElementById('alarmSound').classList.add('show');
+            
+            // Play alarm sound
+            const audio = document.getElementById('alarmAudio');
+            audio.play().catch(err => {
+                console.log('Audio playback failed:', err);
+            });
+            
+            // Vibrate if supported
+            if ('vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+            
+            // Show browser notification if permission granted
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Alarm Clock', {
+                    body: 'Wake up! Your alarm is ringing!',
+                    icon: '⏰',
+                    requireInteraction: true
+                });
+            }
+            
+            console.log('Alarm triggered!');
+        }
+
+        // Request notification permission on load
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Update time every second
+        setInterval(updateCurrentTime, 1000);
+        updateCurrentTime();
+    </script>
+</body>
+</html>
